@@ -28,7 +28,7 @@ public class SharedServerInfo {
 	public synchronized boolean addPorts(Set<Integer> ports) {
 		boolean added = true;
 		for(int port : ports)
-			added = added || this.addPort(port);
+			added = added && this.addPort(port);
 		return added;
 	}
 	public synchronized boolean canAddPort(int port) {

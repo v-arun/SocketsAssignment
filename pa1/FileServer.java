@@ -5,11 +5,7 @@ import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Set;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.Map.Entry;
 import java.util.logging.Logger;
 
@@ -31,15 +27,10 @@ import pa1.util.SharedServerInfo;
  * at different (deterministically) random rates.
  */
 public class FileServer extends AbstractNIOServer {
-	// Default ports
-	protected static final Integer[] DEFAULT_SERVER_PORTS = {
-			Config.DEFAULT_FIXED_PORT, 9245, 6373, 3564, 1235, 6725, 2454,
-			2334, 8865, 7120, 9500, 9501, 9503, 9504, 9505, 9506, 9507, 9508,
-			9509, 9510, 9511, 9512, 9513, 9514, 9515, 9516, 9517, 9518, 9519,
-			9520, 9521, };
 
 	private static final long MAINTENANCE_INTERVAL = 30000; // ms
-	private static final int STRETCH_DURATION = Config.getStretchDuration(); // 500;
+	private static final int STRETCH_DURATION = 200; //Config
+	// .getStretchDuration();
 	private static final long DEPRECATION_DELAY = 5000; // ms
 	private static final long FORCE_DEPRECATION_DELAY = 1800000; // ms
 	private static final int RANDOM_SEED =
@@ -53,21 +44,27 @@ public class FileServer extends AbstractNIOServer {
 	private final ClientStateMap clientMap = new ClientStateMap();
 	private final Logger log = Config.setLogHandler(getClass());
 
-	public FileServer() throws IOException {
-		super(new HashSet<Integer>(Arrays.asList(DEFAULT_SERVER_PORTS)));
+	public FileServer(Integer[] ports) throws IOException {
+		super(new HashSet<Integer>(Arrays.asList(ports)));
 		sharedInfo.addPorts(this.portToServers.keySet());
 		(manager = new BlockTransportScheduler()).start();
 		Config.setLogHandler(log, getClass());
 		log.info("Finished initiating " + getClass().getName() + " on " +
-				Arrays.asList(DEFAULT_SERVER_PORTS));
+				Arrays.asList(Config.DEFAULT_SERVER_PORTS));
 	}
 
 	@Override
 	protected void processAcceptedConnection(SocketChannel connChannel) {
 		if (!this.checkAcceptable(connChannel))
-			this.closeClientChannel(connChannel);
-		else this.clientMap.register(connChannel);
+			this.closeRandomClientChannel(connChannel);
+		this.clientMap.register(connChannel);
 		this.doMaintenanceActivities();
+	}
+
+	private void closeRandomClientChannel(SocketChannel connChannel) {
+		SocketChannel randomChannel = this.clientMap.getRandomOpenClientChannel(
+				connChannel);
+		if(randomChannel!=null) this.closeClientChannel(randomChannel);
 	}
 
 	@Override
@@ -180,13 +177,13 @@ public class FileServer extends AbstractNIOServer {
 		int port = 0;
 		try {
 			// add random new port
-			while (sharedInfo.getPorts().size() <= DEFAULT_SERVER_PORTS.length &&
+			while (sharedInfo.getPorts().size() <= Config.DEFAULT_SERVER_PORTS.length &&
 					!addServer(port = sharedInfo.getRandomNewPort()))
 				log.warning("Failed to add server on port " + port);
 			logMsg += ("Added new port " + port + "; ");
 
 			// remove random existing port if enough open ports
-			while (sharedInfo.getPorts().size() > DEFAULT_SERVER_PORTS.length &&
+			while (sharedInfo.getPorts().size() > Config.DEFAULT_SERVER_PORTS.length &&
 					!removeServer(port = sharedInfo.getRandomListeningPort()))
 				log.warning("Failed to remove server on port " + port);
 			logMsg += ("Deprecated existing port " + port + "; ");
@@ -223,7 +220,8 @@ public class FileServer extends AbstractNIOServer {
 	}
 
 	private boolean removeServer(int port) {
-		if (!this.portToServers.containsKey(port)) return false;
+		if (!this.portToServers.containsKey(port) ||
+				port==Config.DEFAULT_SERVER_PORTS[0]) return false;
 		sharedInfo.deprecatePort(port);
 		// Closing server socket does not affect extant connections
 		this.deprecate(this.portToServers.get(port));
@@ -271,14 +269,15 @@ public class FileServer extends AbstractNIOServer {
 	}
 
 	private static final int getServiceRate(int port) {
-		if (port == DEFAULT_SERVER_PORTS[0])
+		if (port == Config.DEFAULT_SERVER_PORTS[0])
 			return (int) (STRETCH_DURATION * 0.8);
 		else return getRandomServiceRate(port);
 	}
 
 	public static void main(String[] args) {
+
 		try {
-			FileServer fs = new FileServer();
+			FileServer fs = new FileServer(Config.DEFAULT_SERVER_PORTS);
 			fs.run();
 		} catch (IOException e) {
 			e.printStackTrace();

@@ -223,8 +223,8 @@ public class BlockTransportScheduler implements Runnable {
 		try {
 			// write header if new
 			if (blockReq.isNew()) this.writeHeader(blockReq);
-			if (blockReq.isHeaderOnly()) return; // don't redeposit
-			// write body part
+			if (blockReq.isHeaderOnly() && !blockReq.isNew()) return;
+			// will write only if header fully written
 			this.writeNextFewBytes(blockReq);
 			// re-deposit remaining part
 			deposit(blockReq.setNextServiceTime(System.currentTimeMillis() +
@@ -236,19 +236,37 @@ public class BlockTransportScheduler implements Runnable {
 		}		
 	}
 
+	/*
+	This method writes a random prefix of the header first instead of the
+	entire header. This forces the client to read even the header as
+	bytestream instead of a single read.
+	 */
 	private int writeHeader(BlockRequest req) throws IOException {
-		req.setNewRequest(false);
+		//req.setNewRequest(false);
 		int offset = req.getStartByte();
 		int bodyLength = req.getTotalWriteSize();
 		int numWritten = 0;
-		ByteBuffer buf =
-				ByteBuffer.wrap(this.makeHeader(offset, bodyLength).getBytes());
-		while (buf.hasRemaining())
-			numWritten += req.getSock().write(buf);
+		byte[] headerBytes = req.getHeaderBytes() != null ? req.getHeaderBytes
+				() : req.setHeaderBytes(this.makeHeader(offset, bodyLength)
+				.getBytes());
+		int randomOffset = (int) (Math.random() * headerBytes.length);
+		ByteBuffer bbuf = req.getHeaderBytesWritten() == 0 ? ByteBuffer.wrap
+				(headerBytes, 0, randomOffset) : ByteBuffer.wrap(headerBytes,
+				req.getHeaderBytesWritten(), headerBytes.length - req
+						.getHeaderBytesWritten());
+
+		while (bbuf.hasRemaining()) numWritten += req.getSock().write(bbuf);
+
+
+		req.incrHeaderBytesWritten(numWritten);
+		if (req.getHeaderBytesWritten() == headerBytes.length)
+			req.setNewRequest(false);
+
 		return numWritten;
 	}
 
 	private int writeNextFewBytes(BlockRequest req) throws IOException {
+		if(req.isNew()) return 0;
 		byte[] nextWrite =
 				req.getFile().getChunk(req.getStartByte(),
 					req.getNextWriteSize());

@@ -227,6 +227,7 @@ public class GradingState {
 	private synchronized boolean store() {
 		try {
 			GradingStatsFiler.store(this);
+			this.resetChanged();
 		} catch (IOException | JSONException e) {
 			e.printStackTrace();
 		}
@@ -339,7 +340,10 @@ public class GradingState {
 	}
 
 	private synchronized void setChanged(boolean b) {
-		this.changed = b;
+		this.changed = this.changed || b;
+	}
+	private synchronized void resetChanged() {
+		this.changed = false;
 	}
 
 	/************** Testing methods below ***************/

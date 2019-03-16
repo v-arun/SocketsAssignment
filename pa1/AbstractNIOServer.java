@@ -1,13 +1,12 @@
 package pa1;
 
+import com.sun.security.ntlm.Server;
+
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
-import java.nio.channels.SelectionKey;
-import java.nio.channels.Selector;
-import java.nio.channels.ServerSocketChannel;
-import java.nio.channels.SocketChannel;
+import java.nio.channels.*;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -93,16 +92,26 @@ public abstract class AbstractNIOServer implements Runnable {
 						}
 					} catch (IOException e) {
 						// all normal, no need to printStackTrace here
-						log.info(e.getMessage());
+						log.info("Encountered exception on channel " +
+										(SocketChannel)selKey.channel() + ": " +
+										e.getMessage());
+						this.closeClientChannel((SocketChannel)selKey.channel());
 						selKey.cancel(); // unregister keys if exception
+					} catch(CancelledKeyException cke) {
+						// do nothing
+						log.info("Ignoring cancelled key exception " + cke);
 					}
 				}
 			} catch (IOException e) {
 				// all normal, no need to printStackTrace here
+				log.info("Encountered exception in main select loop; " +
+						"continuing");
 				e.printStackTrace();
 			}
 		}
 	}
+
+
 
 	protected synchronized ServerSocketChannel openServer(int port) {
 		ServerSocketChannel ssChannel = null;
@@ -185,7 +194,8 @@ public abstract class AbstractNIOServer implements Runnable {
 
 		// discard empty requests and close connection
 		if (requests.length == 0) {
-			log.info("Received nothing on " + service + ", closing connection");
+			log.info("Received [" + partRequest + "] on " + service + ", " +
+					"closing connection");
 			this.closeClientChannel(service);
 			return;
 		}
@@ -205,7 +215,7 @@ public abstract class AbstractNIOServer implements Runnable {
 
 		if (sockBuf.length() > 0)
 			log.info("Received partial request (without newline) <" +
-					sockBuf.toString() + ">");
+					sockBuf.toString() + "> on" + service );
 
 		// prevent memory exhaustion
 		if (sockBuf.length() > maxRequestSize) {
@@ -222,8 +232,12 @@ public abstract class AbstractNIOServer implements Runnable {
 
 		// Accept the connection
 		SocketChannel connChannel = server.accept();
-		if (!this.isAcceptable(connChannel))
+		log.info("Accepted connection " + connChannel);
+		if (!this.isAcceptable(connChannel)) {
+			log.info("closing " + connChannel + "; numOpenConnections=" +
+					numOpenConnections(connChannel));
 			return this.closeClientChannel(connChannel);
+		}
 		connChannel.configureBlocking(false);
 
 		// Register the channel to read data
@@ -231,7 +245,8 @@ public abstract class AbstractNIOServer implements Runnable {
 			new StringBuffer(maxRequestSize));
 		this.addConnection(server, connChannel);
 		this.processAcceptedConnection(connChannel);
-		log.info("Accepted connection " + connChannel);
+		log.info("Processed accepted connection " + connChannel + "; " +
+				"numOpenConnections=" + numOpenConnections(connChannel));
 		return true;
 	}
 
@@ -244,6 +259,15 @@ public abstract class AbstractNIOServer implements Runnable {
 				return false;
 		}
 		return true;
+	}
+	private int numOpenConnections(SocketChannel channel) {
+		InetAddress ip = channel.socket().getInetAddress();
+		if (this.clientToConnections.containsKey(ip)) {
+			Set<SocketChannel> connections = this.clientToConnections.get(ip);
+			assert (connections != null);
+			return connections.size();
+		}
+		return 0;
 	}
 
 	private boolean addConnection(ServerSocketChannel server, SocketChannel conn) {

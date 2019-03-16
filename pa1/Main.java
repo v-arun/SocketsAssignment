@@ -25,7 +25,8 @@ public class Main {
 			TorrentServer torrentServer = new TorrentServer();
 			(new Thread(torrentServer)).start();
 
-			FileServer fileServer = new FileServer();
+			while(Config.DEFAULT_SERVER_PORTS==null);
+			FileServer fileServer = new FileServer(Config.DEFAULT_SERVER_PORTS);
 			(new Thread(fileServer)).start();
 
 			GradingServer testingServer = new GradingServer();

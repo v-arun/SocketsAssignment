@@ -43,7 +43,7 @@ public class GradingServer extends AbstractNIOServer {
 			"Success! You have answered the challenge correctly in "
 					+ " %g seconds.\n";
 
-	public static GradingStateMap testingMap = new GradingStateMap();
+	public static final GradingStateMap testingMap = new GradingStateMap();
 
 	public GradingServer(int port) throws IOException {
 		super(port);
@@ -144,6 +144,12 @@ public class GradingServer extends AbstractNIOServer {
 		if (testingID != null) { return testingMap.getFile(testingID); }
 		ScrambledFile sfile = FileManager.getScrambledFile(request);
 		return sfile;
+	}
+
+	protected synchronized boolean closeClientChannel(
+			final SocketChannel sockChannel) {
+		this.testingMap.remove(sockChannel);
+		return super.closeClientChannel(sockChannel);
 	}
 
 	public static void main(String[] args) {

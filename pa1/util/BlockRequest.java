@@ -24,6 +24,8 @@ public class BlockRequest {
 	private final boolean headerOnly;
 
 	// non-final
+	private int numHeaderBytesWritten = 0;
+	private byte[] headerBytes = null;
 	private int byteStart; // changes with each rate-limited write
 	private long nextScheduledTime; // for next rate-limited write
 	private boolean newRequest; // true until first write
@@ -161,5 +163,20 @@ public class BlockRequest {
 	}
 
 	public static void main(String[] args) {
+	}
+
+	public void incrHeaderBytesWritten(int numWritten) {
+		this.numHeaderBytesWritten += numWritten;
+	}
+
+	public int getHeaderBytesWritten() {
+		return this.numHeaderBytesWritten;
+	}
+
+	public byte[] getHeaderBytes() {
+		return this.headerBytes;
+	}
+	public byte[] setHeaderBytes(byte[] headerBytes) {
+		return (this.headerBytes = headerBytes);
 	}
 }

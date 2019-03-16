@@ -56,8 +56,7 @@ public class GradingStateMap {
 				else state.processRequest(request);
 
 			}
-		} else 			System.out.println(request);
-
+		}
 	}
 
 	public synchronized void processRequest(String request) {
@@ -82,5 +81,9 @@ public class GradingStateMap {
 		return " Your testing time starts NOW!" +
 				(state != null ? " (Discarding previous " + "test for file " +
 						state.getFilename() + ")" : "") + "\n";
+	}
+
+	public String remove(SocketChannel sockChannel) {
+		return this.channelToID.remove(sockChannel);
 	}
 }

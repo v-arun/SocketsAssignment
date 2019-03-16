@@ -2,6 +2,7 @@ package pa1;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.HashSet;
 import java.util.logging.FileHandler;
 import java.util.logging.Formatter;
 import java.util.logging.Handler;
@@ -13,6 +14,9 @@ import java.util.logging.SimpleFormatter;
  */
 public class Config {
 	public static final int DEFAULT_FIXED_PORT = 18765;
+	// Default ports
+	protected static final Integer[] DEFAULT_SERVER_PORTS =
+			getRandomPortsWithDefault(DEFAULT_FIXED_PORT, 32);
 	public static final int DEFAULT_TORRENT_SERVER_PORT = 19876;
 	public static final int DEFAULT_TESTING_SERVER_PORT = 20001;
 
@@ -44,6 +48,7 @@ public class Config {
 	public static final int DEFAULT_TESTING_STRETCH_DURATION = 200; // corresponds to about 2 mins of download time for redsox.jpg
 	public static final int DEFAULT_INTER_TORRENT_REQUEST_DELAY = 2000; // 2 secs per-IP
 	public static int stretch_duration = DEFAULT_STRETCH_DURATION;
+
 
 	public static enum TorrentFields {
 		NUM_BLOCKS, FILE_SIZE, IP1, PORT1, IP2, PORT2
@@ -123,6 +128,24 @@ public class Config {
 
 	public static final void setStretchDuration(int sd) {
 		stretch_duration = sd;
+	}
+
+	private static int getRandomPort() {
+		return Math.max(1024, (int)(Math.random()*65535));
+	}
+
+	private static Integer[] getRandomPortsWithDefault(int defaultPort, int
+			numPorts) {
+		Integer[] ports = new Integer[numPorts];
+		ports[0] = defaultPort;
+		HashSet<Integer> portSet = new HashSet<Integer>();
+		for(int i=1; i<numPorts; i++)
+			portSet.add(getRandomPort());
+
+		int i=1;
+		for(int port : portSet)
+			ports[i++] = port;
+		return ports;
 	}
 
 	public static void main(String[] args) {

@@ -48,7 +48,11 @@ public class TorrentServer implements Runnable {
 				GradingServer.testingMap.processRequest(new String(
 						udpRequest.getData()));
 				// ignore if rate-limited
-				if (this.repliedRecently(udpRequest.getAddress())) continue;
+				if (this.repliedRecently(udpRequest.getAddress())) {
+					log.info("Replied recently to " + udpRequest.getAddress()
+					+ "; ignoring request");
+					continue;
+				}
 				// else send response
 				this.sendResponse(this.makeResponse(udpRequest).getBytes(),
 					udpRequest);
@@ -84,6 +88,8 @@ public class TorrentServer implements Runnable {
 		else if (this.handleUnregisteredTestingRequest(request,
 			udpRequest.getAddress(), udpRequest.getPort())) {
 			bad = true;
+			log.info("Received unregistered request <" + request + "> from " +
+					udpRequest.getAddress() + ":" + udpRequest.getPort());
 		}
 		return bad;
 	}
@@ -105,7 +111,7 @@ public class TorrentServer implements Runnable {
 		Integer[] ports =
 				FileServer.getSharedInfo().getPorts().toArray(new Integer[0]);
 		if (ports == null || ports.length == 0)
-			ports = FileServer.DEFAULT_SERVER_PORTS;
+			ports = Config.DEFAULT_SERVER_PORTS;
 		return ports;
 	}
 
@@ -161,7 +167,8 @@ public class TorrentServer implements Runnable {
 				new DatagramPacket(buf, buf.length, udpRequest.getAddress(),
 						udpRequest.getPort());
 		log.info("Sending torrent response to " + udpResponse.getAddress() +
-				":" + udpResponse.getPort());
+				":" + udpResponse.getPort() + ": " + new String(udpResponse
+				.getData()).replaceAll("\n", "|"));
 		server.send(udpResponse);
 		this.lastReq.put(udpRequest.getAddress(), System.currentTimeMillis());
 	}

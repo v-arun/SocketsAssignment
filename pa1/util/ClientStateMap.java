@@ -20,12 +20,30 @@ public class ClientStateMap {
 	private final HashMap<String, ClientState> clientMap =
 			new HashMap<String, ClientState>();
 
+	public SocketChannel getRandomOpenClientChannel(SocketChannel
+															   connChannel) {
+		String id = connChannel.socket().getInetAddress().getHostAddress();
+		ClientState clientState = this.clientMap.get(id);
+		if (clientState != null) {
+			int numOpenChannels = clientState.sockChannels.size();
+			SocketChannel randomChannel = null;
+			while (randomChannel == null || randomChannel == connChannel)
+				randomChannel = clientState.sockChannels.toArray(new
+						SocketChannel[0])[(int) (Math.random() *
+						numOpenChannels)];
+			//clientState.sockChannels.remove(randomChannel);
+			return randomChannel;
+		}
+		return null;
+	}
+
 	private class ClientState {
 		private static final int MAX_CONNECTIONS = 5;
 
 		private final String ID; // generally the client IP address
 		private final Set<SocketChannel> sockChannels =
 				new HashSet<SocketChannel>();
+		private long lastActive = System.currentTimeMillis();
 
 		ClientState(String id) {
 			this.ID = id;
@@ -79,7 +97,10 @@ public class ClientStateMap {
 	}
 
 	public synchronized void processRequest(String ip, String request) {
-		// do nothing for now
+		// update last active time
+		ClientState clientState = this.clientMap.get(ip);
+		if(clientState!=null) clientState.lastActive = System
+				.currentTimeMillis();
 	}
 
 	public synchronized ClientState getOrCreateClientState(String id) {

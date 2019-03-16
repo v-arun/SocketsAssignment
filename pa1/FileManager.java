@@ -2,6 +2,7 @@ package pa1;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.util.logging.Logger;
 import javax.imageio.stream.FileImageInputStream;
 
 import pa1.autograding.ScrambledFile;
@@ -11,6 +12,10 @@ import pa1.autograding.ScrambledFile;
  * correctly formatted.
  */
 public class FileManager {
+
+	private final static Logger log = Config.setLogHandler(FileManager
+			.class);
+
 
 	public static final String[] filenames = { "redsox.jpg", "test.jpg" };
 
@@ -31,7 +36,8 @@ public class FileManager {
 
 	public static int getNumBlocks(String filename) {
 		for (int i = 0; i < filenames.length; i++) {
-			if (filename.equals(filenames[i])) return mainBuffers[i].length;
+			if (filename.equals(filenames[i])) return (int)Math.ceil
+					(mainBuffers[i].length*1.0/Config.DEFAULT_BLOCK_SIZE);
 		}
 		return 0;
 	}
@@ -79,10 +85,23 @@ public class FileManager {
 			String[] tokens =
 					request.split(Config.DEFAULT_FILENAME_BLOCKNUM_SEPARATOR_REGEX);
 			if (request.contains(Config.DEFAULT_FILENAME_BLOCKNUM_SEPARATOR_STRING)) {
-				return Integer.valueOf(tokens[1].trim());
+				if(tokens[1].trim().contains(Config
+						.DEFAULT_WILDCARD_BLOCKNUM_STRING)) {
+					int blockNum = (int) (Math.random() * getNumBlocks
+							(getFilename
+							(request)));
+					return blockNum;
+
+				}
+					else
+						try {
+							return Integer.valueOf(tokens[1].trim());
+						} catch(NumberFormatException nfe) {
+							log.info("incurred exception with " +
+									"request " +
+									request + ":" + nfe);
+						}
 			}
-			else if (request.contains(Config.DEFAULT_WILDCARD_BLOCKNUM_STRING))
-				return (int) (Math.random() * getNumBlocks(getFilename(request)));
 		}
 		return -1;
 	}
